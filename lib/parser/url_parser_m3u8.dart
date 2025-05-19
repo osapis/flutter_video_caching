@@ -40,8 +40,10 @@ class UrlParserM3U8 implements UrlParser {
   Future<Uint8List?> cache(DownloadTask task) async {
     Uint8List? dataMemory = await LruCacheSingleton().memoryGet(task.matchUrl);
     if (dataMemory != null) {
-      logD('From memory: ${dataMemory.lengthInBytes.toMemorySize}, '
-          'total memory size: ${await LruCacheSingleton().memoryFormatSize()}');
+      logD(
+        'From memory: ${dataMemory.lengthInBytes.toMemorySize}, '
+        'total memory size: ${await LruCacheSingleton().memoryFormatSize()}',
+      );
       return dataMemory;
     }
     String filePath =
@@ -107,7 +109,7 @@ class UrlParserM3U8 implements UrlParser {
       }
       if (data == null) return false;
       String contentType = 'application/octet-stream';
-      if (task.url.endsWith('.m3u8')) {
+      if (task.uri.path.endsWith('.m3u8')) {
         List<String> lines = readLineFromUint8List(data);
         String lastLine = '';
         StringBuffer buffer = StringBuffer();
@@ -121,7 +123,9 @@ class UrlParserM3U8 implements UrlParser {
               if (encryptKeyUri != null) {
                 String newUri = encryptKeyUri.startsWith('http')
                     ? encryptKeyUri.toLocalUrl()
-                    : '$encryptKeyUri?origin=${uri.origin}';
+                    : (encryptKeyUri.contains("?") == true
+                        ? '$encryptKeyUri?origin=${uri.origin}'
+                        : '$encryptKeyUri&origin=${uri.origin}');
                 line = hlsLine.replaceAll(encryptKeyUri, newUri);
               }
             }
@@ -130,7 +134,9 @@ class UrlParserM3U8 implements UrlParser {
               lastLine.startsWith("#EXT-X-STREAM-INF")) {
             line = line.startsWith('http')
                 ? line.toLocalUrl()
-                : '$line?origin=${uri.origin}';
+                : (line.contains("?") == true
+                    ? '$line&origin=${uri.origin}'
+                    : '$line?origin=${uri.origin}');
           }
           // Setting HLS segment to same key, it will be downloaded in the same directory.
           if (hlsLine.startsWith("#EXT-X-KEY") && encryptKeyUri != null) {
@@ -151,10 +157,10 @@ class UrlParserM3U8 implements UrlParser {
         }
         data = Uint8List.fromList(buffer.toString().codeUnits);
         contentType = 'application/vnd.apple.mpegurl';
-      } else if (task.url.endsWith('.key')) {
+      } else if (task.uri.path.endsWith('.key')) {
         contentType = 'application/octet-stream';
         logW(data.length);
-      } else if (task.url.endsWith('.ts')) {
+      } else if (task.uri.path.endsWith('.ts')) {
         contentType = 'video/MP2T';
       }
       String responseHeaders = <String>[
@@ -201,8 +207,9 @@ class UrlParserM3U8 implements UrlParser {
     Set<String?> hlsKeys = _list.map((e) => e.key).toSet();
     if (hlsKeys.length > 2) {
       _list.where((e) => e.key == hlsKeys.first).forEach((e) {
-        VideoProxy.downloadManager.allTasks
-            .removeWhere((task) => task.url == e.url);
+        VideoProxy.downloadManager.allTasks.removeWhere(
+          (task) => task.url == e.url,
+        );
       });
       _list.removeWhere((e) => e.key == hlsKeys.first);
     }
@@ -213,8 +220,9 @@ class UrlParserM3U8 implements UrlParser {
         .where((e) => e.status == DownloadStatus.DOWNLOADING)
         .toList();
     if (downloading.length >= 4) return;
-    Uint8List? cache =
-        await LruCacheSingleton().memoryGet(segment.url.generateMd5);
+    Uint8List? cache = await LruCacheSingleton().memoryGet(
+      segment.url.generateMd5,
+    );
     if (cache != null) {
       concurrentComplete(segment);
       return;
@@ -307,26 +315,29 @@ class UrlParserM3U8 implements UrlParser {
     if (playList == null) return <String>[];
     List<String> segments = <String>[];
     for (final Segment segment in playList.segments) {
-      String? segmentUrl = segment.url;
-      if (segmentUrl != null && !segmentUrl.startsWith('http')) {
+      String segmentUrl = segment.url ?? '';
+      if (!segmentUrl.startsWith('http')) {
         segmentUrl = '${uri.pathPrefix}/$segmentUrl';
       }
-      if (segmentUrl == null) continue;
       segments.add(segmentUrl);
     }
     return segments;
   }
 
   /// Parsing M3U8 media playlist
-  Future<HlsMediaPlaylist?> parseMediaPlaylist(Uri uri,
-      {String? hlsKey}) async {
+  Future<HlsMediaPlaylist?> parseMediaPlaylist(
+    Uri uri, {
+    String? hlsKey,
+  }) async {
     final HlsPlaylist? playList = await parsePlaylist(uri, hlsKey: hlsKey);
     if (playList is HlsMasterPlaylist) {
       for (final Uri? _uri in playList.mediaPlaylistUrls) {
         if (_uri == null) continue;
         Uri masterUri = Uri.parse('${uri.pathPrefix}${_uri.path}');
-        HlsMediaPlaylist? mediaPlayList =
-            await parseMediaPlaylist(masterUri, hlsKey: uri.generateMd5);
+        HlsMediaPlaylist? mediaPlayList = await parseMediaPlaylist(
+          masterUri,
+          hlsKey: uri.generateMd5,
+        );
         return mediaPlayList;
       }
     } else if (playList is HlsMediaPlaylist) {
@@ -337,8 +348,10 @@ class UrlParserM3U8 implements UrlParser {
 
   /// Parsing M3U8 resolution list
   Future<HlsPlaylist?> parsePlaylist(Uri uri, {String? hlsKey}) async {
-    DownloadTask task =
-        DownloadTask(uri: uri, hlsKey: hlsKey ?? uri.generateMd5);
+    DownloadTask task = DownloadTask(
+      uri: uri,
+      hlsKey: hlsKey ?? uri.generateMd5,
+    );
     Uint8List? uint8List = await cache(task);
     if (uint8List == null) uint8List = await download(task);
     if (uint8List == null) return null;
