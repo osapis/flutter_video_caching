@@ -1,12 +1,19 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import '../ext/log_ext.dart';
 
 extension UriExt on Uri {
   String get pathPrefix {
-    if (pathSegments.isEmpty) throw Exception("Path segments are empty");
-    List<String> segments = pathSegments.sublist(0, pathSegments.length - 1);
-    Uri newUri = replace(pathSegments: segments);
+    if (pathSegments.isEmpty) {
+      throw Exception("Path segments are empty");
+    }
+    final newUri = Uri(
+      scheme: scheme,
+      host: host,
+      port: port,
+      pathSegments: pathSegments.take(pathSegments.length - 1).toList(),
+    );
     return newUri.toString();
   }
 
