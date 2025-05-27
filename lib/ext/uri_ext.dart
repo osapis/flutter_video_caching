@@ -4,7 +4,7 @@ import 'package:crypto/crypto.dart';
 import '../ext/log_ext.dart';
 
 extension UriExt on Uri {
-  String get pathPrefix {
+  String pathPrefix([int relativePath = 0]) {
     if (pathSegments.isEmpty) {
       throw Exception("Path segments are empty");
     }
@@ -12,7 +12,8 @@ extension UriExt on Uri {
       scheme: scheme,
       host: host,
       port: port,
-      pathSegments: pathSegments.take(pathSegments.length - 1).toList(),
+      pathSegments:
+          pathSegments.take(pathSegments.length - 1 - relativePath).toList(),
     );
     return newUri.toString();
   }

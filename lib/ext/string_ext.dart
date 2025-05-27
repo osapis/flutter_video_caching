@@ -10,15 +10,18 @@ extension UrlExt on String {
     if (!startsWith('http')) return this;
     Uri uri = Uri.parse(this);
     if (uri.host == Config.ip && uri.port == Config.port) return this;
-    // String proxy = 'http://${Config.ip}:${Config.port}';
-    final proxyUri = Uri(
-      scheme: "http",
+    Map<String, String> queryParameters = {...uri.queryParameters};
+    queryParameters.putIfAbsent(
+      'origin',
+      () => base64Url.encode(utf8.encode(uri.origin)),
+    );
+    uri = uri.replace(
+      scheme: 'http',
       host: Config.ip,
       port: Config.port,
-      path: uri.path,
-      queryParameters: {...uri.queryParameters, 'origin': uri.origin},
+      queryParameters: queryParameters,
     );
-    return proxyUri.toString();
+    return uri.toString();
   }
 
   /// Convert to local http address
@@ -29,22 +32,20 @@ extension UrlExt on String {
   /// Convert to original link
   String toOriginUrl() {
     Uri uri = Uri.parse(this);
-    String? origin = uri.queryParameters['origin'];
+    Map<String, String> queryParameters = {...uri.queryParameters};
+    if (!queryParameters.containsKey('origin')) return this;
+    String? origin = queryParameters['origin'];
+    if (origin != null && origin.isNotEmpty) {
+      origin = utf8.decode(base64Url.decode(origin));
+    }
     if (origin == null) return this;
-    final originUri = Uri.parse(origin);
-    final originQueryParameters = {...uri.queryParameters};
-    originQueryParameters.remove('origin');
-    final originUrl =
-        Uri(
-          scheme: originUri.scheme,
-          host: originUri.host,
-          port: originUri.port,
-          path: uri.path,
-          queryParameters: originQueryParameters,
-        ).toString();
-    print(originQueryParameters);
-    print(originUri.queryParameters);
-    return originUrl;
+    Uri originUri = Uri.parse(origin);
+    queryParameters.remove('origin');
+    originUri = originUri.replace(
+      path: uri.path,
+      queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
+    );
+    return originUri.toString();
   }
 
   /// Convert to original link
