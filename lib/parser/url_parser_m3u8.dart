@@ -115,22 +115,20 @@ class UrlParserM3U8 implements UrlParser {
             if (match != null && match.groupCount >= 1) {
               parseUri = match.group(1);
               if (parseUri != null) {
-                String newUri =
-                    parseUri.startsWith('http')
-                        ? parseUri.toLocalUrl()
-                        : '$parseUri${parseUri.contains('?') ? '&' : '?'}'
-                            'origin=${base64Url.encode(utf8.encode(uri.origin))}';
+                String newUri = parseUri.startsWith('http')
+                    ? parseUri.toLocalUrl()
+                    : '$parseUri${parseUri.contains('?') ? '&' : '?'}'
+                        'origin=${base64Url.encode(utf8.encode(uri.origin))}';
                 line = hlsLine.replaceAll(parseUri, newUri);
               }
             }
           }
           if (lastLine.startsWith("#EXTINF") ||
               lastLine.startsWith("#EXT-X-STREAM-INF")) {
-            line =
-                line.startsWith('http')
-                    ? line.toLocalUrl()
-                    : '$line${line.contains('?') ? '&' : '?'}'
-                        'origin=${base64Url.encode(utf8.encode(uri.origin))}';
+            line = line.startsWith('http')
+                ? line.toLocalUrl()
+                : '$line${line.contains('?') ? '&' : '?'}'
+                    'origin=${base64Url.encode(utf8.encode(uri.origin))}';
           }
           // Setting HLS segment to same key, it will be downloaded in the same directory.
           if ((hlsLine.startsWith("#EXT-X-KEY") ||
@@ -255,11 +253,10 @@ class UrlParserM3U8 implements UrlParser {
     }
     HlsSegment? segment = _list.where((e) => e.url == _latestUrl).firstOrNull;
     if (segment == null) return;
-    List<HlsSegment> downloading =
-        _list
-            .where((e) => e.key == segment.key)
-            .where((e) => e.status == DownloadStatus.DOWNLOADING)
-            .toList();
+    List<HlsSegment> downloading = _list
+        .where((e) => e.key == segment.key)
+        .where((e) => e.status == DownloadStatus.DOWNLOADING)
+        .toList();
     if (downloading.length >= 4) return;
     Uint8List? cache = await LruCacheSingleton().memoryGet(
       segment.url.generateMd5,
@@ -314,11 +311,10 @@ class UrlParserM3U8 implements UrlParser {
     }
     Set<String?> keys = _list.map((e) => e.key).toSet();
     String? key = keys.elementAt(Random().nextInt(keys.length));
-    HlsSegment? idleSegment =
-        _list
-            .where((e) => e.key == key)
-            .where((e) => e.status == DownloadStatus.IDLE)
-            .firstOrNull;
+    HlsSegment? idleSegment = _list
+        .where((e) => e.key == key)
+        .where((e) => e.status == DownloadStatus.IDLE)
+        .firstOrNull;
     if (idleSegment == null) {
       _list.removeWhere((e) => e.key == key);
       concurrentComplete(hlsSegment);
@@ -358,9 +354,10 @@ class UrlParserM3U8 implements UrlParser {
     List<String> segments = <String>[];
     for (final Segment segment in playList.segments) {
       String? segmentUrl = segment.url;
-      if (!segmentUrl.startsWith('http')) {
+      if (segmentUrl != null && !segmentUrl.startsWith('http')) {
         segmentUrl = '${uri.pathPrefix()}/$segmentUrl';
       }
+      if (segmentUrl == null) continue;
       segments.add(segmentUrl);
     }
     return segments;
